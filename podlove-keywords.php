@@ -3,7 +3,7 @@
    Plugin Name: Podlove Podcast Keywords
    Plugin URI: https://github.com/rahra/podlove-keywords
    description: This plugin adds your favorite keywords of your podcast to the RSS feed of Podlove Podcast Publisher.
-   Version: 1.1
+   Version: 1.2
    Author: Bernhard R. Fischer
    Author URI: https://www.cypherpunk.at/
    License: GPL3
@@ -19,8 +19,12 @@ class PodloveKeywordsPlugin
       // add options menu to WP settings
       add_action('admin_menu', array($this, 'create_plugin_settings_page'));
 
-      // add action which adds keywords to the fee
+      // add action which adds keywords to the feed
       add_action('podlove_append_to_feed_head', array($this, 'set_feed_tags'), 10, 3);
+
+      // add action which adds keywords to each entry
+      if (get_option('pt_tags_post') == 1)
+         add_action('podlove_append_to_feed_entry', array($this, 'set_feed_entry_tags'), 10, 4);
    }
 
 
@@ -33,6 +37,28 @@ class PodloveKeywordsPlugin
       $keywords_tag = sprintf('<itunes:keywords>%s</itunes:keywords>', $keywords);
       // output keywords
       echo "\t" . apply_filters('podlove_feed_itunes_keywords', $keywords_tag);
+      echo PHP_EOL;
+   }
+
+
+   /*! This method adds each entry's keywords to the feed. */
+   public function set_feed_entry_tags($podcast, $episode, $feed, $format)
+   {
+      // get keywords
+      $post_tags = wp_get_post_tags($episode->post_id);
+      if ($post_tags)
+      {
+         foreach($post_tags as $tag)
+         {
+            if (strlen($keywords) > 0)
+               $keywords .= ',';
+            $keywords .= $tag->name;
+         }
+      }
+      // create full keyword string
+      $keywords_tag = sprintf('<itunes:keywords>%s</itunes:keywords>', $keywords);
+      // output keywords
+      echo "\n\t" . apply_filters('podlove_feed_itunes_keywords', $keywords_tag);
       echo PHP_EOL;
    }
 
@@ -103,7 +129,10 @@ class PodloveKeywordsPlugin
    public function setup_fields()
    {
       add_settings_field('pt_tags', 'Tags/Keywords', array( $this, 'field_callback' ), PTAGS_SLUG, 'section0');
+      add_settings_field('pt_tags_post', 'Append keywords of post to entries', array($this, 'post_field_callback'), PTAGS_SLUG, 'section0' );
+
       register_setting(PTAGS_SLUG, 'pt_tags', array($this, 'check_keywords'));
+      register_setting(PTAGS_SLUG, 'pt_tags_post', array($this, 'check_post_keywords'));
    }
 
 
@@ -115,12 +144,30 @@ class PodloveKeywordsPlugin
    }
 
 
+   /*! Check and sanitized value of checkbox
+   */
+   public function check_post_keywords($val)
+   {
+      if ($val != 1 && $val != 0)
+         $val = 0;
+      return $val;
+   }
+
+
    /*! Ouput input field and its content on the settings page.
    */
    public function field_callback()
    {
       $value = get_option('pt_tags');
       echo '<textarea name="pt_tags" id="pt_tags" rows="5" cols="50">' . $value . '</textarea>';
+   }
+
+
+   /*! Output checkbox field. */
+   public function post_field_callback()
+   {
+      $value = get_option('pt_tags_post');
+      echo '<input type="checkbox" name="pt_tags_post" value="1" ' . checked(1, $value, false) . '/>';
    }
 }
 
