@@ -44,6 +44,7 @@ class PodloveKeywordsPlugin
    /*! This method adds each entry's keywords to the feed. */
    public function set_feed_entry_tags($podcast, $episode, $feed, $format)
    {
+      $keywords = "";
       // get keywords
       $post_tags = wp_get_post_tags($episode->post_id);
       if ($post_tags)
